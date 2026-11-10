@@ -39,8 +39,19 @@
     #urlbar-search-mode-indicator { gap: 6px; }
     #arc-tts-indicator-icon { width: 14px; height: 14px; flex-shrink: 0; }
     #arc-tts-indicator-icon[hidden] { display: none !important; }
-    #urlbar-search-mode-indicator-title, #urlbar .searchmode-switcher-title {
-      color: var(--arc-tts-engine-color, inherit) !important;
+    /* Chip background takes the engine's icon color; the title keeps the theme color. */
+    [arc-tts-colored] #urlbar-search-mode-indicator,
+    #urlbar[arc-tts-colored][searchmode] .searchmode-switcher {
+      background-color: var(--arc-tts-engine-color) !important;
+    }
+    /* Very light engine colors (e.g. yellow) get dark text so the title stays readable. */
+    [arc-tts-light-bg] :is(#urlbar-search-mode-indicator-title, .searchmode-switcher-title) {
+      color: #1c1b22 !important;
+    }
+    /* Thin outline so icons don't vanish on a background of their own color. */
+    [arc-tts-colored] #arc-tts-indicator-icon,
+    #urlbar[arc-tts-colored][searchmode] .searchmode-switcher-icon {
+      filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
     }
   `;
 
@@ -256,12 +267,26 @@
     indicatorIcon.hidden = true;
     indicator?.prepend(indicatorIcon);
 
+    function setChipColor(color) {
+      if (!color) {
+        wrapper.style.removeProperty("--arc-tts-engine-color");
+        wrapper.removeAttribute("arc-tts-colored");
+        wrapper.removeAttribute("arc-tts-light-bg");
+        return;
+      }
+      wrapper.style.setProperty("--arc-tts-engine-color", color);
+      wrapper.setAttribute("arc-tts-colored", "true");
+      const [r, g, b] = color.match(/\d+/g).map(Number);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      wrapper.toggleAttribute("arc-tts-light-bg", luminance > 0.7);
+    }
+
     async function decorateIndicator() {
       const engineName = urlbar.searchMode?.engineName;
       const match = engineName && engines.find((e) => e.name === engineName);
       if (!match) {
         indicatorIcon.hidden = true;
-        wrapper.style.removeProperty("--arc-tts-engine-color");
+        setChipColor(null);
         return;
       }
       if (match.iconURL) {
@@ -272,8 +297,7 @@
       }
       const color = await iconColor(match.iconURL);
       if (urlbar.searchMode?.engineName !== engineName) return; // changed meanwhile
-      if (color) wrapper.style.setProperty("--arc-tts-engine-color", color);
-      else wrapper.style.removeProperty("--arc-tts-engine-color");
+      setChipColor(color);
     }
 
     // ---- events -----------------------------------------------------------
