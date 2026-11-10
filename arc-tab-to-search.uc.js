@@ -36,6 +36,12 @@
       border-radius: 5px;
       background: color-mix(in srgb, currentColor 16%, transparent);
     }
+    #urlbar-search-mode-indicator { gap: 6px; }
+    #arc-tts-indicator-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    #arc-tts-indicator-icon[hidden] { display: none !important; }
+    #urlbar-search-mode-indicator-title, #urlbar .searchmode-switcher-title {
+      color: var(--arc-tts-engine-color, inherit) !important;
+    }
   `;
 
   // Newer Firefox/Zen builds no longer expose Services.search; import the module instead.
@@ -115,7 +121,7 @@
       }
     }
     loadEngines();
-    const engineObserver = () => loadEngines();
+    const engineObserver = () => loadEngines().then(() => decorateIndicator());
     Services.obs.addObserver(engineObserver, "browser-search-engine-modified");
 
     // ---- matching ---------------------------------------------------------
@@ -169,16 +175,105 @@
       hint.hidden = false;
     }
 
-    function enterSearchMode(match) {
+    function clearInput() {
+      if (typeof urlbar.setValue === "function") urlbar.setValue("");
+      else urlbar.value = "";
+      urlbar.userTypedValue = "";
+    }
+
+    // Mirrors Firefox's maybeConfirmSearchModeFromResult: enter the mode, clear the
+    // typed keyword, then run the query once the (async) search mode is applied.
+    async function enterSearchMode(match) {
       hide();
-      const searchMode = { engineName: match.name, entry: "keywordoffer" };
+      const searchMode = { engineName: match.name, entry: "keywordoffer", isPreview: false };
       try {
-        urlbar.value = "";
+        const applied = new Promise((resolve) => {
+          urlbar.addEventListener("searchmodechanged", resolve, { once: true });
+          setTimeout(resolve, 500);
+        });
         urlbar.searchMode = searchMode;
+        clearInput();
+        await applied;
+        clearInput();
         urlbar.startQuery?.({ allowAutofill: false });
       } catch (e) {
         console.error("[arc-tab-to-search] could not enter search mode", e);
       }
+    }
+
+    // ---- search-mode chip: engine icon + icon-tinted title -----------------
+    const colorCache = new Map();
+
+    // Dominant saturated color of an icon, or null for monochrome icons.
+    function iconColor(url) {
+      if (!url) return Promise.resolve(null);
+      if (colorCache.has(url)) return colorCache.get(url);
+      const p = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const size = 32;
+            const canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0, size, size);
+            const data = ctx.getImageData(0, 0, size, size).data;
+            const buckets = new Map(); // hue bucket -> {w, r, g, b}
+            for (let i = 0; i < data.length; i += 4) {
+              const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+              if (a < 128) continue;
+              const max = Math.max(r, g, b), min = Math.min(r, g, b);
+              const sat = max === 0 ? 0 : (max - min) / max;
+              if (sat < 0.3 || max < 50) continue; // skip greys, white, black
+              let h;
+              if (max === r) h = ((g - b) / (max - min)) % 6;
+              else if (max === g) h = (b - r) / (max - min) + 2;
+              else h = (r - g) / (max - min) + 4;
+              const key = Math.round(((h * 60 + 360) % 360) / 20);
+              const w = sat;
+              const bk = buckets.get(key) || { w: 0, r: 0, g: 0, b: 0 };
+              bk.w += w; bk.r += r * w; bk.g += g * w; bk.b += b * w;
+              buckets.set(key, bk);
+            }
+            let best = null;
+            for (const bk of buckets.values()) if (!best || bk.w > best.w) best = bk;
+            if (!best || best.w < 4) return resolve(null);
+            resolve(`rgb(${Math.round(best.r / best.w)}, ${Math.round(best.g / best.w)}, ${Math.round(best.b / best.w)})`);
+          } catch (e) {
+            resolve(null);
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+      colorCache.set(url, p);
+      return p;
+    }
+
+    const indicator = document.getElementById("urlbar-search-mode-indicator");
+    const indicatorIcon = document.createElement("img");
+    indicatorIcon.id = "arc-tts-indicator-icon";
+    indicatorIcon.hidden = true;
+    indicator?.prepend(indicatorIcon);
+
+    async function decorateIndicator() {
+      const engineName = urlbar.searchMode?.engineName;
+      const match = engineName && engines.find((e) => e.name === engineName);
+      if (!match) {
+        indicatorIcon.hidden = true;
+        wrapper.style.removeProperty("--arc-tts-engine-color");
+        return;
+      }
+      if (match.iconURL) {
+        indicatorIcon.src = match.iconURL;
+        indicatorIcon.hidden = false;
+      } else {
+        indicatorIcon.hidden = true;
+      }
+      const color = await iconColor(match.iconURL);
+      if (urlbar.searchMode?.engineName !== engineName) return; // changed meanwhile
+      if (color) wrapper.style.setProperty("--arc-tts-engine-color", color);
+      else wrapper.style.removeProperty("--arc-tts-engine-color");
     }
 
     // ---- events -----------------------------------------------------------
@@ -208,6 +303,12 @@
       document.getElementById("urlbar") ||
       urlbar.inputField.parentNode;
     wrapper.addEventListener("keydown", onKeyDown, true);
+
+    // Covers every way into search mode (Tab, @keyword, the engine switcher, tab switches).
+    const onSearchModeChanged = () => decorateIndicator();
+    wrapper.addEventListener("searchmodechanged", onSearchModeChanged);
+    window.addEventListener("Zen:UrlbarSearchModeChanged", onSearchModeChanged);
+    gBrowser.tabContainer.addEventListener("TabSelect", onSearchModeChanged);
 
     window.addEventListener(
       "unload",
