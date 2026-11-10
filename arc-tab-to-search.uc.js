@@ -42,16 +42,12 @@
     /* Chip background takes the engine's icon color; the title keeps the theme color. */
     [arc-tts-colored] #urlbar-search-mode-indicator,
     #urlbar[arc-tts-colored][searchmode] .searchmode-switcher {
-      background-color: var(--arc-tts-engine-color) !important;
+      /* Darkened so the (usually same-colored) icon stays visible on top. */
+      background-color: color-mix(in srgb, var(--arc-tts-engine-color) 45%, black) !important;
     }
     /* Very light engine colors (e.g. yellow) get dark text so the title stays readable. */
     [arc-tts-light-bg] :is(#urlbar-search-mode-indicator-title, .searchmode-switcher-title) {
       color: #1c1b22 !important;
-    }
-    /* Thin outline so icons don't vanish on a background of their own color. */
-    [arc-tts-colored] #arc-tts-indicator-icon,
-    #urlbar[arc-tts-colored][searchmode] .searchmode-switcher-icon {
-      filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
     }
   `;
 
@@ -277,7 +273,8 @@
       wrapper.style.setProperty("--arc-tts-engine-color", color);
       wrapper.setAttribute("arc-tts-colored", "true");
       const [r, g, b] = color.match(/\d+/g).map(Number);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      // Background is the color mixed 45% with black (see CSS).
+      const luminance = (0.45 * (0.299 * r + 0.587 * g + 0.114 * b)) / 255;
       wrapper.toggleAttribute("arc-tts-light-bg", luminance > 0.7);
     }
 
