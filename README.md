@@ -14,9 +14,12 @@ needs a script loader. Pick one:
 
 ### Option A: Sine (a mod manager for Zen that supports JS mods)
 1. Install Sine: https://github.com/CosmoCreeper/Sine
-2. In Settings → Sine Mods, install from the repo `IksGarG/zen-arc-tab-to-search`.
+2. In Sine's settings, turn on **"Enable installing JS from unofficial sources"**
+   (`sine.allow-unsafe-js` in about:config). Sine only runs JS from its own store
+   otherwise, so without this the mod installs but does nothing.
+3. In Settings → Sine Mods, install from the repo `IksGarG/zen-arc-tab-to-search`.
    Sine reads `theme.json` to find the script.
-3. Restart Zen.
+4. Restart Zen.
 
 ### Option B: fx-autoconfig
 1. Follow https://github.com/MrOtherGuy/fx-autoconfig: copy `program/` files into
