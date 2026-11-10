@@ -14,7 +14,8 @@ needs a script loader. Pick one:
 
 ### Option A: Sine (a mod manager for Zen that supports JS mods)
 1. Install Sine: https://github.com/CosmoCreeper/Sine
-2. Put `arc-tab-to-search.uc.js` in your profile's `chrome/JS/` folder.
+2. In Settings → Sine Mods, install from the repo `IksGarG/zen-arc-tab-to-search`.
+   Sine reads `theme.json` to find the script.
 3. Restart Zen.
 
 ### Option B: fx-autoconfig
