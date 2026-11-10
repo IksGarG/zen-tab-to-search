@@ -1,21 +1,21 @@
 {
-  "id": "zen-arc-tab-to-search",
-  "homepage": "https://github.com/IksGarG/zen-arc-tab-to-search",
+  "id": "zen-tab-to-search",
+  "homepage": "https://github.com/IksGarG/zen-tab-to-search",
   "author": "IksGarG",
-  "name": "Arc Tab to Search",
-  "description": "Arc-style tab-to-search: type part of a search engine's name and press Tab to search with it.",
-  "version": "1.2.1",
+  "name": "Tab to Search",
+  "description": "Type part of a search engine's name and press Tab to search with it.",
+  "version": "1.3.0",
   "createdAt": "2026-11-10",
   "updatedAt": "2026-11-10",
-  "readme": "https://raw.githubusercontent.com/IksGarG/zen-arc-tab-to-search/main/README.md",
+  "readme": "https://raw.githubusercontent.com/IksGarG/zen-tab-to-search/main/README.md",
   "style": {},
   "scripts": {
-    "arc-tab-to-search.uc.js": {
+    "tab-to-search.uc.js": {
       "name": "Tab to Search",
       "description": "Shows a 'Search <engine> [Tab]' hint in the URL bar and enters that engine's search mode on Tab.",
       "include": ["chrome://browser/content/browser.xhtml"]
     }
   },
-  "tags": ["urlbar", "search", "arc"],
+  "tags": ["urlbar", "search"],
   "fork": ["zen"]
 }

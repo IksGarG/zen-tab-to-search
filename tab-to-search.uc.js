@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name           Arc-style Tab to Search
-// @description    Type the start of a search engine's name, keyword or domain ("you" → YouTube) and press Tab to search with it, like Arc.
+// @name           Tab to Search
+// @description    Type the start of a search engine's name, keyword or domain ("you" → YouTube) and press Tab to search with it.
 // @include        main
 // @onlyonce
 // ==/UserScript==
@@ -9,14 +9,14 @@
   "use strict";
 
   // Optional about:config prefs:
-  //   arcTabToSearch.minChars (int, default 2)  – characters needed before a hint shows
-  const PREF_MIN_CHARS = "arcTabToSearch.minChars";
+  //   tabToSearch.minChars (int, default 2)  – characters needed before a hint shows
+  const PREF_MIN_CHARS = "tabToSearch.minChars";
   const minChars = () => {
     try { return Services.prefs.getIntPref(PREF_MIN_CHARS, 2); } catch { return 2; }
   };
 
   const CSS = `
-    #arc-tts-hint {
+    #tts-hint {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -26,9 +26,9 @@
       pointer-events: none;
       opacity: 0.75;
     }
-    #arc-tts-hint[hidden] { display: none !important; }
-    #arc-tts-hint img { width: 14px; height: 14px; }
-    #arc-tts-hint kbd {
+    #tts-hint[hidden] { display: none !important; }
+    #tts-hint img { width: 14px; height: 14px; }
+    #tts-hint kbd {
       font: inherit;
       font-size: 11px;
       font-weight: 600;
@@ -37,16 +37,16 @@
       background: color-mix(in srgb, currentColor 16%, transparent);
     }
     #urlbar-search-mode-indicator { gap: 6px; }
-    #arc-tts-indicator-icon { width: 14px; height: 14px; flex-shrink: 0; }
-    #arc-tts-indicator-icon[hidden] { display: none !important; }
+    #tts-indicator-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    #tts-indicator-icon[hidden] { display: none !important; }
     /* Chip background takes the engine's icon color; the title keeps the theme color. */
-    [arc-tts-colored] #urlbar-search-mode-indicator,
-    #urlbar[arc-tts-colored][searchmode] .searchmode-switcher {
+    [tts-colored] #urlbar-search-mode-indicator,
+    #urlbar[tts-colored][searchmode] .searchmode-switcher {
       /* Darkened so the (usually same-colored) icon stays visible on top. */
-      background-color: color-mix(in srgb, var(--arc-tts-engine-color) 45%, black) !important;
+      background-color: color-mix(in srgb, var(--tts-engine-color) 45%, black) !important;
     }
     /* Very light engine colors (e.g. yellow) get dark text so the title stays readable. */
-    [arc-tts-light-bg] :is(#urlbar-search-mode-indicator-title, .searchmode-switcher-title) {
+    [tts-light-bg] :is(#urlbar-search-mode-indicator-title, .searchmode-switcher-title) {
       color: #1c1b22 !important;
     }
   `;
@@ -72,8 +72,8 @@
       setTimeout(init, 300);
       return;
     }
-    if (urlbar.__arcTabToSearch) return;
-    urlbar.__arcTabToSearch = true;
+    if (urlbar.__tabToSearch) return;
+    urlbar.__tabToSearch = true;
 
     // ---- styles -----------------------------------------------------------
     const style = document.createElement("style");
@@ -82,7 +82,7 @@
 
     // ---- hint element ("Search YouTube  [Tab]") ---------------------------
     const hint = document.createElement("div");
-    hint.id = "arc-tts-hint";
+    hint.id = "tts-hint";
     hint.hidden = true;
     const icon = document.createElement("img");
     const label = document.createElement("span");
@@ -124,7 +124,7 @@
           })
         );
       } catch (e) {
-        console.error("[arc-tab-to-search] failed to load engines", e);
+        console.error("[tab-to-search] failed to load engines", e);
       }
     }
     loadEngines();
@@ -204,7 +204,7 @@
         clearInput();
         urlbar.startQuery?.({ allowAutofill: false });
       } catch (e) {
-        console.error("[arc-tab-to-search] could not enter search mode", e);
+        console.error("[tab-to-search] could not enter search mode", e);
       }
     }
 
@@ -259,23 +259,23 @@
 
     const indicator = document.getElementById("urlbar-search-mode-indicator");
     const indicatorIcon = document.createElement("img");
-    indicatorIcon.id = "arc-tts-indicator-icon";
+    indicatorIcon.id = "tts-indicator-icon";
     indicatorIcon.hidden = true;
     indicator?.prepend(indicatorIcon);
 
     function setChipColor(color) {
       if (!color) {
-        wrapper.style.removeProperty("--arc-tts-engine-color");
-        wrapper.removeAttribute("arc-tts-colored");
-        wrapper.removeAttribute("arc-tts-light-bg");
+        wrapper.style.removeProperty("--tts-engine-color");
+        wrapper.removeAttribute("tts-colored");
+        wrapper.removeAttribute("tts-light-bg");
         return;
       }
-      wrapper.style.setProperty("--arc-tts-engine-color", color);
-      wrapper.setAttribute("arc-tts-colored", "true");
+      wrapper.style.setProperty("--tts-engine-color", color);
+      wrapper.setAttribute("tts-colored", "true");
       const [r, g, b] = color.match(/\d+/g).map(Number);
       // Background is the color mixed 45% with black (see CSS).
       const luminance = (0.45 * (0.299 * r + 0.587 * g + 0.114 * b)) / 255;
-      wrapper.toggleAttribute("arc-tts-light-bg", luminance > 0.7);
+      wrapper.toggleAttribute("tts-light-bg", luminance > 0.7);
     }
 
     async function decorateIndicator() {
