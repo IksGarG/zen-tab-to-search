@@ -38,6 +38,21 @@
     }
   `;
 
+  // Newer Firefox/Zen builds no longer expose Services.search; import the module instead.
+  function getSearchService() {
+    if (Services.search) return Services.search;
+    for (const url of [
+      "moz-src:///toolkit/components/search/SearchService.sys.mjs",
+      "resource://gre/modules/SearchService.sys.mjs",
+    ]) {
+      try {
+        const mod = ChromeUtils.importESModule(url);
+        if (mod.SearchService) return mod.SearchService;
+      } catch {}
+    }
+    throw new Error("search service not found");
+  }
+
   function init() {
     const urlbar = window.gURLBar;
     if (!urlbar?.inputField || !window.gBrowser) {
@@ -69,8 +84,9 @@
     let engines = [];
     async function loadEngines() {
       try {
-        await Services.search.init();
-        const list = await Services.search.getVisibleEngines();
+        const search = getSearchService();
+        await search.init();
+        const list = await search.getVisibleEngines();
         engines = await Promise.all(
           list.map(async (engine) => {
             let iconURL = null;
@@ -155,14 +171,10 @@
 
     function enterSearchMode(match) {
       hide();
-      const searchMode = { engineName: match.name, entry: "typed" };
+      const searchMode = { engineName: match.name, entry: "keywordoffer" };
       try {
         urlbar.value = "";
-        if (typeof urlbar.setSearchMode === "function") {
-          urlbar.setSearchMode(searchMode, gBrowser.selectedBrowser);
-        } else {
-          urlbar.searchMode = searchMode;
-        }
+        urlbar.searchMode = searchMode;
         urlbar.startQuery?.({ allowAutofill: false });
       } catch (e) {
         console.error("[arc-tab-to-search] could not enter search mode", e);
@@ -189,7 +201,12 @@
     urlbar.inputField.addEventListener("input", onInput);
     urlbar.inputField.addEventListener("blur", onBlur);
     // Capture on the urlbar wrapper so we run before Firefox's own Tab handling.
-    const wrapper = urlbar.textbox || urlbar.inputField.parentNode;
+    // gURLBar is the <moz-urlbar> element itself in newer builds; older ones expose .textbox.
+    const wrapper =
+      urlbar.textbox ||
+      (Element.isInstance?.(urlbar) || urlbar instanceof Element ? urlbar : null) ||
+      document.getElementById("urlbar") ||
+      urlbar.inputField.parentNode;
     wrapper.addEventListener("keydown", onKeyDown, true);
 
     window.addEventListener(
